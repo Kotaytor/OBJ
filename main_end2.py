@@ -1,5 +1,6 @@
 import pygame
 import random
+import sys
 
 pygame.init()
 
@@ -13,26 +14,6 @@ white = (255,255,255)
 red = (255,0,0)
 blue = (0,0,255)
 green = (0,255,0)
-
-#прыжок и кувырок
-player_image = pygame.image.load('nikoluk_s_pivom_kastrirovaniy.png')
-pos = [screen_width/2, screen_height/2]
-speed = 10
-initialPos = pos[1]
-size = 150
-rotateForce = 10
-image = player_image
-_image = image
-jumpForce = 100
-isKuvyrok = False
-jumpPos = pos[1]
-up = False
-angle = rotateForce
-isFlip = False
-isRight = True
-rotated_image = image
-new_rect = rotated_image.get_rect(center = image.get_rect().center)
-force = 10
 
 # параметры стен и дверей
 line_width = 10
@@ -52,8 +33,14 @@ screen.blit(pivko, pivo_rect)
 # параметры и стартовая позиция николюка
 player_radius = 23
 player_speed = 10
-player_x = screen_width - 20
-player_y = screen_height - line_offset
+
+#прыжок и кувырок
+player = pygame.image.load('nikoluk_s_pivom_kastrirovaniy.png')
+image_rect = player.get_rect(center=(screen_width - 20, screen_height - line_offset))
+angle = 0
+moving_up = False
+moving_down = False
+move_speed = 2
 
 # рисуем стены и двери
 lines = []
@@ -77,81 +64,59 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-            quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                moving_up = True
 
     # передвижение игрока
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT] and player_x > player_radius:
-        player_x -= player_speed
-    elif keys[pygame.K_RIGHT] and player_x < screen_width - player_radius:
-        player_x += player_speed
-    elif keys[pygame.K_UP] and player_y > player_radius:
-        player_y -= player_speed
-    elif keys[pygame.K_DOWN] and player_y < screen_height - player_radius:
-        player_y += player_speed
-
-    if isKuvyrok:
-        rotated_image = pygame.transform.rotate(_image, angle)
-        new_rect = rotated_image.get_rect(center = image.get_rect(topleft = (pos[0] - size/2, pos[1] - size/2)).center)
-        angle += rotateForce
+    if keys[pygame.K_LEFT] and image_rect.x > player_radius:
+        image_rect.x -= player_speed
+    elif keys[pygame.K_RIGHT] and image_rect.x < screen_width - player_radius:
+        image_rect.x += player_speed
+    elif keys[pygame.K_UP] and image_rect.y > player_radius:
+        image_rect.y -= player_speed
+    elif keys[pygame.K_DOWN] and image_rect.y < screen_height - player_radius:
+        image_rect.y += player_speed
+        
+    if moving_up:
+        angle += 10
         if angle >= 360:
             angle = 0
-            isKuvyrok = False
-
-    elif pos[1] != jumpPos and up:
-        pos[1] -= speed
-        if pos[1] == jumpPos:
-            up = False
-            isKuvyrok = True
-
-    elif not up and pos[1] != initialPos:
-        pos[1] += speed
-
-    elif(pos[1] == initialPos and jumpPos != initialPos):
-        jumpPos = initialPos
-
-    for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    if(jumpPos == initialPos):
-                        jumpPos = initialPos - jumpForce
-                        up = True
-                if event.key == pygame.K_DOWN:
-                    isKuvyrok = True
-
-
+            moving_up = False
+        image_rect.y -= move_speed
+        if image_rect.y < 50:
+            moving_up = False
+    if not moving_up and image_rect.y < 300:
+        image_rect.y += move_speed
 
     # проверка столкновений игрока со стенами
-    player_rect = pygame.Rect(player_x - player_radius, player_y - player_radius, player_radius * 2, player_radius * 2)
+    player_rect = pygame.Rect(image_rect.x - player_radius, image_rect.y - player_radius, player_radius * 2, player_radius * 2)
     for line in lines:
         if line.colliderect(player_rect):
             # в случае столкновения возвращаем игрока назад
-            if player_x > line.left and player_x < line.right:
-                if player_y < line.top:
-                    player_y = line.top - player_radius
+            if image_rect.x > line.left and image_rect.x < line.right:
+                if image_rect.y < line.top:
+                    image_rect.y = line.top - player_radius
                 else:
-                    player_y = line.bottom + player_radius
-            elif player_y > line.top and player_y < line.bottom:
-                if player_x < line.left:
-                    player_x = line.left - player_radius
+                    image_rect.y = line.bottom + player_radius
+            elif image_rect.y > line.top and image_rect.y < line.bottom:
+                if image_rect.x < line.left:
+                    image_rect.x = line.left - player_radius
                 else:
-                    player_x = line.right + player_radius
+                    image_rect.x = line.right + player_radius
     screen.fill(black)
     for line in lines:
         pygame.draw.rect(screen, green, line)
-    player_rect = player_image.get_rect(center=(player_x, player_y))
-    screen.blit(player_image, player_rect)
 
-    pivko = pygame.image.load('pivko.png').convert_alpha()
+    screen.blit(player, image_rect.topleft)
     screen.blit(pivko, pivo_rect)
-    if player_rect.colliderect(pivo_rect):
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    if(jumpPos == initialPos):
-                        jumpPos = initialPos - jumpForce
-                        up = True
-                if event.key == pygame.K_DOWN:
-                    isKuvyrok = True
+
+    rotated_image = pygame.transform.rotate(player, angle)
+    new_rect = rotated_image.get_rect(center=image_rect.center)
+    screen.blit(rotated_image, new_rect.topleft)
+
+    pygame.display.flip()
     pygame.display.update()
     clock.tick(60)
